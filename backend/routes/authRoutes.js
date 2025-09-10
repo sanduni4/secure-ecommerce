@@ -1,44 +1,28 @@
 const express = require("express");
-const bcrypt = require("bcryptjs");
-const jwt = require("jsonwebtoken");
-const User = require("../models/User");
 const router = express.Router();
-const { registerUser, loginUser } = require('../controllers/authController');
+const { registerUser, loginUser } = require("../controllers/authController");
+const { protect, authorizeRoles } = require("../middleware/authMiddleware");
 
-// Register
-router.post("/register", async (req, res) => {
-  const { name, email, password, role } = req.body;
-  try {
-    const hashed = await bcrypt.hash(password, 10);
-    const user = new User({ name, email, password: hashed, role });
-    await user.save();
-    res.json({ message: "User registered" });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+// --------------------- AUTH ROUTES ---------------------
+
+// Register - anyone can register
+router.post("/register", registerUser);
+
+// Login - anyone can login
+router.post("/login", loginUser);
+
+// --------------------- PROTECTED ROUTES ---------------------
+
+// Example: Admin-only route
+router.get("/admin/users", protect, authorizeRoles("admin"), async (req, res) => {
+  const users = await require("../models/User").find().select("-password");
+  res.json(users);
 });
 
-router.post('/register', registerUser);
-router.post('/login', loginUser);
-
-// Login
-router.post("/login", async (req, res) => {
-  const { email, password } = req.body;
-  try {
-    const user = await User.findOne({ email });
-    if (!user) return res.status(400).json({ message: "User not found" });
-
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) return res.status(400).json({ message: "Invalid password" });
-
-    const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, {
-      expiresIn: "1d"
-    });
-
-    res.json({ token, role: user.role, name: user.name });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+// Example: Customer-only route
+router.get("/orders", protect, authorizeRoles("customer"), async (req, res) => {
+  const orders = await require("../models/Order").find({ userId: req.user._id });
+  res.json(orders);
 });
 
 module.exports = router;

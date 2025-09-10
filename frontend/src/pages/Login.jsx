@@ -6,6 +6,7 @@ import { useAuth0 } from "@auth0/auth0-react";
 function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [loginRole, setLoginRole] = useState(""); // Track logged-in role
   const navigate = useNavigate();
 
   const { loginWithRedirect, isAuthenticated, user, logout } = useAuth0();
@@ -14,8 +15,10 @@ function Login() {
   useEffect(() => {
     if (isAuthenticated && user) {
       if (user.email === "admin@example.com") {
+        setLoginRole("admin");
         navigate("/admin");
       } else {
+        setLoginRole("customer"); // or "user" if you want to treat all non-admins as users
         navigate("/");
       }
     }
@@ -29,8 +32,14 @@ function Login() {
       localStorage.setItem("token", res.data.token);
       localStorage.setItem("role", res.data.role);
 
+      setLoginRole(res.data.role);
+
       if (res.data.role === "admin") {
         navigate("/admin");
+      } else if (res.data.role === "customer") {
+        navigate("/customer-dashboard"); // Change to your customer dashboard route
+      } else if (res.data.role === "user") {
+        navigate("/user-dashboard"); // Change to your user dashboard route
       } else {
         navigate("/");
       }
@@ -44,6 +53,13 @@ function Login() {
     <div style={styles.container}>
       <div style={styles.card}>
         <h2 style={styles.title}>Welcome Back</h2>
+
+        {/* Show logged-in role message */}
+        {loginRole && (
+          <div style={{ marginBottom: 15, color: "#c36717ff" }}>
+            Logged in as: <b>{loginRole}</b>
+          </div>
+        )}
 
         {/* Traditional Login */}
         <form onSubmit={handleLogin} style={styles.form}>
@@ -93,8 +109,6 @@ function Login() {
 }
 
 const styles = {
-
-
   container: {
     minHeight: "100vh",
     display: "flex",
